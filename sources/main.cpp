@@ -1,44 +1,48 @@
 // Local Headers
 
+
 // System Headers
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include "Shader.h"
-#include "stb_image.h"
-#include "TriangleMesh.h"
-//#include "assimp/material.h"
-//#include "assimp/types.h"
-//#include "assimp/Importer.hpp"
-//#include "assimp/scene.h"
-//#include "assimp/postprocess.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+//nekima mozda ne radi primjerASSIMP zbog ponovnih definicija stbi funkcija.
+//Jedno od mogucih rjesenja je da se zakomentira linija #define STB_IMAGE_IMPLEMENTATION.
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "TriangleMesh.h"
+#include "Object.h"
+#include "FPSManager.h"
+#include "Renderer.h"
+#include "glm/ext/matrix_clip_space.hpp"
+#include "Camera.h"
+#include "glm/ext/matrix_transform.hpp"
+#include "Light.h"
+#include "Particle.h"
+
+#define _USE_MATH_DEFINES
 
 // Standard Headers
-#include <cstdio>
-#include <cstdlib>
-
 #include <iostream>
-
+#include <cstdlib>
+#include <vector>
 
 using namespace std;
 
-int width = 900, height = 600;
+const double pi = 3.14159265358979323846;
 
-//na temelju naziva sjencara izradi objekt sjencara. Npr. shader0 -> shader0.vert i shader0.frag
-Shader* LoadShaderWithGeometry(char* path, char* naziv) {
+//malo je nespretno napravljeno jer ne koristimo c++17, a treba podrzati i windows i linux,
+//slobodno pozivajte new Shader(...); direktno
+
+Shader* LoadShader(char* path, char* naziv) {
     std::string sPath(path);
     std::string pathVert;
     std::string pathFrag;
-
-    //malo je nespretno napravljeno jer ne koristimo biblioteku iz c++17, a treba podrzati i windows i linux
 
     pathVert.append(path, sPath.find_last_of("\\/") + 1);
     pathFrag.append(path, sPath.find_last_of("\\/") + 1);
@@ -63,6 +67,7 @@ Shader* LoadShaderWithGeometry(char* path, char* naziv) {
     return new Shader(pathVert.c_str(), pathFrag.c_str());
 }
 
+
 TriangleMesh* ImportMesh(const string& path) {
     Assimp::Importer importer;
 
@@ -70,7 +75,7 @@ TriangleMesh* ImportMesh(const string& path) {
     std::string resPath(dirPath);
     resPath.append("\\resources"); //za linux pretvoriti u forwardslash
     std::string objPath(resPath);
-    objPath.append("\\glava\\glava.obj"); //za linux pretvoriti u forwardslash
+    objPath.append("\\sphere\\sphere.obj"); //za linux pretvoriti u forwardslash
 
     const aiScene* scene = importer.ReadFile(objPath.c_str(),
                                              aiProcess_CalcTangentSpace |
@@ -119,131 +124,304 @@ TriangleMesh* ImportMesh(const string& path) {
     return new TriangleMesh(vertices, normals, indices);
 }
 
+Material* ImportMaterial(const string& path) {
+    Assimp::Importer importer;
 
-void framebuffer_size_callback(GLFWwindow * window, int Width, int Height)
-{
-    width = Width;
-    height = Height;
+    std::string dirPath(path, 0, path.find_last_of("\\/"));
+    std::string resPath(dirPath);
+    resPath.append("\\resources"); //za linux pretvoriti u forwardslash
+    std::string objPath(resPath);
+    objPath.append("\\sphere\\sphere.obj"); //za linux pretvoriti u forwardslash
+
+    const aiScene* scene = importer.ReadFile(objPath.c_str(),
+                                             aiProcess_CalcTangentSpace |
+                                             aiProcess_Triangulate |
+                                             aiProcess_JoinIdenticalVertices |
+                                             aiProcess_SortByPType |
+                                             aiProcess_FlipUVs |
+                                             aiProcess_GenNormals
+
+    );
+
+    if (!scene) {
+        cerr << importer.GetErrorString();
+        exit(-1);
+    }
+    if (!scene->HasMaterials()) {
+        cerr << "Scene has no materials." << endl;
+        exit(-1);
+    }
+    aiMaterial* material = scene->mMaterials[scene->mNumMaterials - 1];
+
+    aiColor3D ambientK, diffuseK, specularK;
+    auto* output = new Material;
+
+    material->Get(AI_MATKEY_COLOR_AMBIENT, ambientK);
+    output->ambient = glm::vec3(ambientK.r, ambientK.g, ambientK.g);
+
+    material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseK);
+    output->diffuse = glm::vec3(diffuseK.r, diffuseK.g, diffuseK.g);
+
+    material->Get(AI_MATKEY_COLOR_SPECULAR, specularK);
+    output->specular = glm::vec3(specularK.r, specularK.g, specularK.g);
+
+    material->Get(AI_MATKEY_SHININESS, output->shininess);
+    return output;
 }
 
+Renderer* renderer;
 
-/*****************************************************************************************************************************
-organizacija koda:
-Svaki primjer ima dva dijela. Dio koji se izvrsi prije pokretanja glavne petlje i dio koji se izvrsava unutar glavne petlje.
-Generirani VAO, VBO i EBO se izmedu nekih primjera dijele.
+void FramebufferSizeCallback(GLFWwindow* window, int Width, int Height)
+{
+    renderer->width = Width;
+    renderer->height = Height;
+    glViewport(0, 0, Width, Height);
+}
 
-ako se ne pokrece!!
-primjer 4b koristi funkcionalnosti iz novijih verzija OpenGL, pa ako ga zakomentirate mozda popravi vas problem
-*****************************************************************************************************************************/
+Camera camera;
+double pitch;
+double yaw;
 
-int main(int argc, char * argv[]) {
+void CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+    glm::vec2 newPos(xpos, ypos);
+    auto delta = newPos - glm::vec2(renderer->width * 0.5, renderer->height * 0.5);
+    delta *= -0.001;
 
-    GLFWwindow* window;
+    pitch += delta.y;
+    pitch = std::max(-pi * 0.5 + 0.01, std::min(pitch, pi * 0.5 - 0.01));
 
+    yaw += delta.x;
 
-    std::cout << argv[0] << std::endl;
+    camera.SetRotation(yaw, glm::vec3(0, 1, 0));
+    camera.Rotate(pitch, camera.LocalToGlobalDir() * glm::vec4(1, 0, 0, 0));
+}
 
-    glfwInit();
+bool forwardPressed;
+bool backPressed;
+bool leftPressed;
+bool rightPressed;
+bool upPressed;
+bool downPressed;
 
-    //glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    //glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+glm::vec3 moveVector;
 
-    window = glfwCreateWindow(width, height, "ClothSim", nullptr, nullptr);
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (action == GLFW_REPEAT) return;
 
-    // Check for Valid Context
-    if (window == nullptr) {
-        fprintf(stderr, "Failed to Create OpenGL Context");
-        exit(EXIT_FAILURE);
+    bool pressed = action == GLFW_PRESS;
+    if (key == GLFW_KEY_W) {
+        forwardPressed = pressed;
+    } else if (key == GLFW_KEY_A) {
+        leftPressed = pressed;
+    } else if (key == GLFW_KEY_S) {
+        backPressed = pressed;
+    } else if (key == GLFW_KEY_D) {
+        rightPressed = pressed;
+    } else if (key == GLFW_KEY_E) {
+        downPressed = pressed;
+    } else if (key == GLFW_KEY_Q) {
+        upPressed = pressed;
+    } else {
+        return;
     }
 
-    glfwMakeContextCurrent(window);
+    moveVector = glm::vec3((rightPressed ? 1.0f : 0.0f) + (leftPressed ? -1.0f : 0.0f),
+                           (upPressed ? 1.0f : 0.0f) + (downPressed ? -1.0f : 0.0f),
+                           (backPressed ? 1.0f : 0.0f) + (forwardPressed ? -1.0f : 0.0f));
+}
 
-    gladLoadGL();
+void calculateVertices(const vector<vector<glm::vec3>>& currentPositions, vector<glm::vec3>& vertices) {
+    int dim = currentPositions.size();
+    for (int i = 0; i < dim; ++i) {
+        for (int j = 0; j < dim; ++j) {
+            vertices[dim * i + j] = currentPositions[i][j];
+        }
+    }
+}
 
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); //funkcija koja se poziva prilikom mijenjanja velicine prozora
+void calculateNormals(const vector<vector<glm::vec3>>& currentPositions, vector<glm::vec3>& normals) {
+    int dim = currentPositions.size();
+    for (glm::vec3& normal : normals) {
+        normal = glm::vec3(0);
+    }
+    for (int i = 0; i < dim - 1; ++i) {
+        for (int j = 0; j < dim - 1; ++j) {
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glm::vec3 faceNormal1 =
+                    glm::normalize(glm::cross(currentPositions[i][j + 1] - currentPositions[i][j],
+                                              currentPositions[i + 1][j] - currentPositions[i][j]));
+            normals[i * dim + j] += faceNormal1;
+            normals[i * dim + (j + 1)] += faceNormal1;
+            normals[(i + 1) * dim + j] += faceNormal1;
 
-    fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
+            glm::vec3 faceNormal2 =
+                    glm::normalize(glm::cross(currentPositions[i + 1][j] - currentPositions[i + 1][j + 1],
+                                              currentPositions[i][j + 1] - currentPositions[i + 1][j + 1]));
+            normals[i * dim + (j + 1)] += faceNormal2;
+            normals[(i + 1) * dim + (j + 1)] += faceNormal2;
+            normals[(i + 1) * dim + j] += faceNormal2;
+        }
+    }
+    for (glm::vec3& normal: normals) {
+        normal = glm::normalize(normal);
+    }
+}
 
-    glClearColor(0.15, 0.1, 0.1, 1);
+vector<int> calculateIndices(int dim){
+    vector<int> indices;
+    for (int i = 0; i < dim - 1; ++i) {
+        for (int j = 0; j < dim - 1; ++j) {
+            indices.emplace_back(i * dim + j);
+            indices.emplace_back(i * dim + (j + 1));
+            indices.emplace_back((i + 1) * dim + j);
 
-    //generiranje buffera
-    GLuint VAO;
-    GLuint VBO;
-    GLuint EBO;
+            indices.emplace_back(i * dim + (j + 1));
+            indices.emplace_back((i + 1) * dim + (j + 1));
+            indices.emplace_back((i + 1) * dim + j);
+        }
+    }
+    return indices;
+}
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+int main(int argc, char* argv[]) {
+    renderer = new Renderer(1000, 1000);
 
-    Shader *sjencar;
+    glfwSetFramebufferSizeCallback(renderer->window, FramebufferSizeCallback); //funkcija koja se poziva prilikom mijenjanja velicine prozora
+    glfwSetCursorPosCallback(renderer->window, CursorPosCallback);
+    glfwSetKeyCallback(renderer->window, KeyCallback);
+    glfwSetInputMode(renderer->window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    //primjer 1
-    //vrhovi kroz buffer, a boja kroz uniformnu varijablu
-
-    sjencar = LoadShaderWithGeometry(argv[0], "shader0");
-
-    GLint lokacijaUniformVarijable = glGetUniformLocation(sjencar->ID, "u_color");
-
-    float trokutKoordinate[9] = {
-            //  koordinate
-            -1, -1, 0,
-            1, -1, 0,
-            0,  1, 0 };
-
-    glBindVertexArray(VAO); //Iduce naredbe se odnose na vezani(bind) VAO sve dok se ne promijeni ili iskljuci.
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO); //Iduce naredbe se odnose na vezani(bind) VBO sve dok se ne promijeni ili iskljuci
-    glBufferData(GL_ARRAY_BUFFER, sizeof(trokutKoordinate), trokutKoordinate, GL_STATIC_DRAW);  //naredba za definiranje gdje se nalaze podaci u glavnoj memoriji za prijenos na graf. karticu
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); //pogledati shader0.vert
-    glEnableVertexAttribArray(0); //pogledati shader0.vert
-
-    glBindVertexArray(0);
-
-    // ucitaj kocku
     auto* triangleMesh = ImportMesh(string(argv[0]));
     triangleMesh->Normalize();
 
-    triangleMesh->SendToGpu();
+//    auto* object = new Object(triangleMesh, LoadShader(argv[0], "scene"));
+//    object->SendToGpu();
+//    object->material = ImportMaterial(string(argv[0]));
+//    renderer->RegisterRenderable(object);
 
-    //glavna petlja programa
-    while (glfwWindowShouldClose(window) == false) {
+    Shader* shader = LoadShader(argv[0], "scene");
+    auto* collider = new Object(triangleMesh, shader);
+    collider->SendToGpu();
+    collider->transforms[0].SetScale(glm::vec3(0.93));
+    collider->material = ImportMaterial(string(argv[0]));
+    collider->material->SetShader(shader);
+    renderer->RegisterRenderable(collider);
 
-        glClear(GL_COLOR_BUFFER_BIT);
+    auto* object2 = new Object(triangleMesh, LoadShader(argv[0], "scene"));
+    object2->SendToGpu();
+    Transform transform;
+    transform.SetPosition(glm::vec3(3, 0, 0));
+    transform.SetRotation(1.5, glm::normalize(glm::vec3(1, 1, 1)));
+    transform.SetScale(glm::vec3(3, 2, 1));
+    object2->transforms[0] = transform;
+    object2->material->diffuse = glm::vec3(1, 0, 0);
+    object2->material->specular = glm::vec3(0, 0, 1);
+    renderer->RegisterRenderable(object2);
 
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, true);
+    camera.SetPosition(glm::vec3(0, 0, 5));
 
-        /********************************************************/
-        //primjer 1
-        glUseProgram(sjencar->ID); //koristi sjencar shader0
-        glUniform3f(lokacijaUniformVarijable, 0.5, 0.5, 1.0); //pogledaj shader0.vert
+    Light light;
+    light.SetPosition(glm::vec3(10, 10, 10));
 
-        glViewport(0, height/2, width/3, height/2); //u koji dio okvira prozora se iscrtava (gore lijevo)
+    Particle particle{};
+    particle.position = glm::vec3(0, 30, 0);
+    particle.previousPosition = glm::vec3(0, 30, 0);
 
-        glBindVertexArray(VAO); //koristi VAO[0] za crtanje
-        glDrawArrays(GL_TRIANGLES, 0, 3); //poziv crtanja
-        glBindVertexArray(0);
+    int dim = 24;
+    vector<vector<glm::vec3>> previousPos(dim, vector<glm::vec3>(dim));
+    vector<vector<glm::vec3>> currentPos(dim, vector<glm::vec3>(dim));
+    vector<vector<glm::vec3>> nextPos(dim, vector<glm::vec3>(dim));
+    float springConstant = 100;
+    float equilibriumDistance = 0.08;
 
-        glViewport(10, 10, width - 20, height - 20); //u koji dio okvira prozora se iscrtava (gore lijevo)
-
-        //nacrtaj kocku
-        triangleMesh->Bind();
-        triangleMesh->Draw();
-
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-
+    for (int i = 0; i < dim; ++i) {
+        for (int j = 0; j < dim; ++j) {
+            glm::vec3 particlePos = glm::vec3(-0.8f + i * equilibriumDistance, 3, -0.75f + j * equilibriumDistance);
+            currentPos[i][j] = particlePos;
+            previousPos[i][j] = particlePos;
+        }
     }
-    delete sjencar;
 
-    glDeleteBuffers(1, &VBO);
-    glDeleteVertexArrays(1, &VAO);
+    vector<glm::vec3> vertices(dim * dim);
+    calculateVertices(currentPos, vertices);
+    vector<int> indices = calculateIndices(currentPos.size()); // always the same?
+    vector<glm::vec3> normals(dim * dim);
+    calculateNormals(currentPos, normals);
 
-    glfwTerminate();
+    TriangleMesh* fabricMesh = new TriangleMesh(vertices, normals, indices);
+    Object* fabric = new Object(fabricMesh, LoadShader(argv[0], "scene"));
+    renderer->RegisterRenderable(fabric);
+    fabric->SendToGpu();
 
+    float dt = 0.005f;
+    while (!glfwWindowShouldClose(renderer->window)) {
+        if (moveVector != glm::vec3(0.0f)) {
+            camera.Move(dt * camera.LocalToGlobalDir() * glm::vec4(moveVector, 0.0f));
+        }
+
+        for (int i = 0; i < dim; ++i) {
+            for (int j = 0; j < dim; ++j) {
+                vector<glm::vec3> neighbors;
+                if (0 < i) {
+                    neighbors.push_back(currentPos[i - 1][j]);
+                } if (i < dim - 1) {
+                    neighbors.push_back(currentPos[i + 1][j]);
+                } if (0 < j) {
+                    neighbors.push_back(currentPos[i][j - 1]);
+                } if (j < dim - 1) {
+                    neighbors.push_back(currentPos[i][j + 1]);
+                }
+
+                glm::vec3 acceleration = glm::vec3(0, -0.1, 0);
+                glm::vec3 particlePosition = currentPos[i][j];
+                for (auto neighborPosition : neighbors) {
+                    float neighborDistance = glm::distance(particlePosition, neighborPosition);
+                    float dx = neighborDistance - equilibriumDistance;
+                    acceleration += (neighborPosition - particlePosition) / neighborDistance * dx * springConstant;
+                }
+
+                glm::vec3 nextPosition = 2.0f * particlePosition - previousPos[i][j] + acceleration * dt * dt;
+
+                glm::vec3 colliderCenter = glm::vec3(0, 0, 0);
+                float colliderRadius = 1;
+
+                if (glm::distance(nextPosition, colliderCenter) < colliderRadius) {
+                    nextPosition = colliderCenter + glm::normalize(nextPosition - colliderCenter) * colliderRadius;
+                }
+                nextPos[i][j] = nextPosition;
+            }
+        }
+        std::swap(previousPos, currentPos);
+        std::swap(currentPos, nextPos);
+
+        calculateVertices(currentPos, fabricMesh->vertices);
+        calculateNormals(currentPos, fabricMesh->normals);
+        fabricMesh->SendToGpu();
+
+        glm::vec3 acceleration = glm::vec3(0, -0.1, 0);
+
+        glm::vec3 colliderCenter = glm::vec3(0.1, 0, 0);
+        float colliderRadius = 1;
+
+        glm::vec3 previousPosition = particle.position;
+        particle.position = 2.0f * particle.position - particle.previousPosition + acceleration * dt * dt;
+        particle.previousPosition = previousPosition;
+
+        if (glm::distance(particle.position, colliderCenter) < colliderRadius) {
+            particle.position = colliderCenter + glm::normalize(particle.position - colliderCenter) * colliderRadius;
+        }
+
+        // object->transforms[0].SetPosition(particle.position);
+
+        renderer->Render(camera, light);
+
+        glfwPollEvents();
+        if (glfwGetKey(renderer->window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            glfwSetWindowShouldClose(renderer->window, true);
+        glfwSetCursorPos(renderer->window, renderer->width * 0.5, renderer->height * 0.5);
+    }
+    delete renderer;
     return EXIT_SUCCESS;
 }

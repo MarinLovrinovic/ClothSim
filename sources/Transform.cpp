@@ -1,8 +1,8 @@
 #include "Transform.h"
-#include "MyGLM.h"
 
 #include <glm/glm.hpp>
 #include "glm/ext.hpp"
+
 
 
 glm::mat4 Transform::RotationMatrix() const {
@@ -10,11 +10,11 @@ glm::mat4 Transform::RotationMatrix() const {
 }
 
 glm::mat4 Transform::ScaleMatrix() const {
-    return MyGLM::Scale3D(glm::vec3(scale));
+    return glm::scale(glm::mat4(1), glm::vec3(scale));
 }
 
 glm::mat4 Transform::TranslationMatrix() const {
-    return MyGLM::Translate3D(glm::vec3(offset));
+    return glm::translate(glm::mat4(1), glm::vec3(offset));
 }
 
 glm::mat4 Transform::GetModelMatrix() const {
@@ -36,13 +36,13 @@ void Transform::Move(glm::vec3 by) {
 }
 
 void Transform::SetRotation(float angle, glm::vec3 axis) {
-    auto rotation = MyGLM::Rotate3D(angle, axis);
+    auto rotation = glm::rotate(glm::mat4(1), angle, axis);;
     localX = rotation[0];
     localY = rotation[1];
     localZ = rotation[2];
 }
 void Transform::Rotate(float angle, glm::vec3 axis) {
-    auto rotation = MyGLM::Rotate3D(angle, axis);
+    auto rotation = glm::rotate(glm::mat4(1), angle, axis);;
     localX = rotation * localX;
     localY = rotation * localY;
     localZ = rotation * localZ;

@@ -11,15 +11,15 @@ using namespace std;
 
 class TriangleMesh : public Renderable {
 private:
-    vector<glm::vec3> vertices;
-    vector<glm::vec3> normals;
-    vector<int> indices;
     GLuint verticesVBO;
     GLuint normalsVBO;
     GLuint EBO;
     GLuint VAO;
     pair<glm::vec3, glm::vec3> GetBoundingBox();
 public:
+    vector<glm::vec3> vertices;
+    vector<glm::vec3> normals;
+    vector<int> indices;
     TriangleMesh(vector<glm::vec3> vertices, vector<glm::vec3> normals, vector<int> indices);
     ~TriangleMesh() override;
     void SendToGpu() override;

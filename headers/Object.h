@@ -23,15 +23,11 @@ private:
     GLint lightDiffuseLocation;
     GLint lightSpecularLocation;
 
-    GLint materialAmbientLocation;
-    GLint materialDiffuseLocation;
-    GLint materialSpecularLocation;
-    GLint materialShininessLocation;
 public:
     Object(Renderable* renderable, Shader* shader);
     ~Object();
     vector<Transform> transforms;
-    Material* material = new Material;
+    Material* material;
     void SendToGpu();
     void Draw(glm::mat4 viewProjectionMatrix, glm::vec3 eyePosition, const Light &light);
 };
