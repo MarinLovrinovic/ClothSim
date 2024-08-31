@@ -10,7 +10,6 @@
 
 class Object {
 private:
-    Renderable* renderable;
     Shader* shader;
 
     GLint modelMatrixLocation;
@@ -27,6 +26,7 @@ public:
     Object(Renderable* renderable, Shader* shader);
     ~Object();
     vector<Transform> transforms;
+    Renderable* renderable;
     Material* material;
     void SendToGpu();
     void Draw(glm::mat4 viewProjectionMatrix, glm::vec3 eyePosition, const Light &light);

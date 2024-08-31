@@ -329,16 +329,18 @@ int main(int argc, char* argv[]) {
     particle.position = glm::vec3(0, 30, 0);
     particle.previousPosition = glm::vec3(0, 30, 0);
 
-    int dim = 24;
+    int dim = 30;
     vector<vector<glm::vec3>> previousPos(dim, vector<glm::vec3>(dim));
     vector<vector<glm::vec3>> currentPos(dim, vector<glm::vec3>(dim));
     vector<vector<glm::vec3>> nextPos(dim, vector<glm::vec3>(dim));
-    float springConstant = 100;
-    float equilibriumDistance = 0.08;
+    float springConstant = 60;
+    float diagonalConstant = springConstant;
+    float equilibriumDistance = 0.1;
+    float diagonalEquilibrium = sqrt(2) * equilibriumDistance;
 
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
-            glm::vec3 particlePos = glm::vec3(-0.8f + i * equilibriumDistance, 3, -0.75f + j * equilibriumDistance);
+            glm::vec3 particlePos = glm::vec3(-1.45f + i * equilibriumDistance, 1.05, -1.45f + j * equilibriumDistance);
             currentPos[i][j] = particlePos;
             previousPos[i][j] = particlePos;
         }
@@ -381,6 +383,24 @@ int main(int argc, char* argv[]) {
                     float dx = neighborDistance - equilibriumDistance;
                     acceleration += (neighborPosition - particlePosition) / neighborDistance * dx * springConstant;
                 }
+
+                vector<glm::vec3> diagonalNeighbors;
+                if (0 < i && 0 < j) {
+                    diagonalNeighbors.push_back(currentPos[i - 1][j - 1]);
+                } if (i < dim - 1 && j < dim - 1) {
+                    diagonalNeighbors.push_back(currentPos[i + 1][j + 1]);
+                } if (i < dim - 1 && 0 < j) {
+                    diagonalNeighbors.push_back(currentPos[i + 1][j - 1]);
+                } if (0 < i && j < dim - 1) {
+                    diagonalNeighbors.push_back(currentPos[i - 1][j + 1]);
+                }
+
+                for (auto neighborPosition : diagonalNeighbors) {
+                    float neighborDistance = glm::distance(particlePosition, neighborPosition);
+                    float dx = neighborDistance - diagonalEquilibrium;
+                    acceleration += (neighborPosition - particlePosition) / neighborDistance * dx * diagonalConstant;
+                }
+
 
                 glm::vec3 nextPosition = 2.0f * particlePosition - previousPos[i][j] + acceleration * dt * dt;
 
