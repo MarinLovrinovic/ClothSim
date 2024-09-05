@@ -10,7 +10,7 @@
 
 using namespace std;
 
-class Cloth : Renderable {
+class Cloth {
     int dim;
     vector<vector<glm::vec3>> previousPos;
     vector<vector<glm::vec3>> currentPos;
@@ -23,7 +23,7 @@ class Cloth : Renderable {
 public:
     Object* object;
 
-    Cloth(int dimension, float springConstant, float equilibriumDistance, Shader* shader);
+    Cloth(int dimension, float springConstant, Shader* shader, glm::vec3 position, float sideLength);
     void Update(float dt);
 };
 

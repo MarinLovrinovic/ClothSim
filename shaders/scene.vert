@@ -9,18 +9,6 @@ out vec3 position;
 uniform mat4 model;
 uniform mat4 viewProjection;
 
-uniform vec3 eye;
-
-uniform vec3 lightPosition;
-uniform vec3 lightAmbient;
-uniform vec3 lightDiffuse;
-uniform vec3 lightSpecular;
-
-uniform vec3 materialAmbient;
-uniform vec3 materialDiffuse;
-uniform vec3 materialSpecular;
-uniform float materialShininess;
-
 void main() {
     mat3 normalTransformation = mat3(transpose(inverse(model)));
     normal = normalize(normalTransformation * aNormal);

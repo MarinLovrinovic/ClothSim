@@ -24,6 +24,7 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "Light.h"
 #include "Particle.h"
+#include "Cloth.h"
 
 #define _USE_MATH_DEFINES
 
@@ -231,59 +232,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                            (backPressed ? 1.0f : 0.0f) + (forwardPressed ? -1.0f : 0.0f));
 }
 
-void calculateVertices(const vector<vector<glm::vec3>>& currentPositions, vector<glm::vec3>& vertices) {
-    int dim = currentPositions.size();
-    for (int i = 0; i < dim; ++i) {
-        for (int j = 0; j < dim; ++j) {
-            vertices[dim * i + j] = currentPositions[i][j];
-        }
-    }
-}
-
-void calculateNormals(const vector<vector<glm::vec3>>& currentPositions, vector<glm::vec3>& normals) {
-    int dim = currentPositions.size();
-    for (glm::vec3& normal : normals) {
-        normal = glm::vec3(0);
-    }
-    for (int i = 0; i < dim - 1; ++i) {
-        for (int j = 0; j < dim - 1; ++j) {
-
-            glm::vec3 faceNormal1 =
-                    glm::normalize(glm::cross(currentPositions[i][j + 1] - currentPositions[i][j],
-                                              currentPositions[i + 1][j] - currentPositions[i][j]));
-            normals[i * dim + j] += faceNormal1;
-            normals[i * dim + (j + 1)] += faceNormal1;
-            normals[(i + 1) * dim + j] += faceNormal1;
-
-            glm::vec3 faceNormal2 =
-                    glm::normalize(glm::cross(currentPositions[i + 1][j] - currentPositions[i + 1][j + 1],
-                                              currentPositions[i][j + 1] - currentPositions[i + 1][j + 1]));
-            normals[i * dim + (j + 1)] += faceNormal2;
-            normals[(i + 1) * dim + (j + 1)] += faceNormal2;
-            normals[(i + 1) * dim + j] += faceNormal2;
-        }
-    }
-    for (glm::vec3& normal: normals) {
-        normal = glm::normalize(normal);
-    }
-}
-
-vector<int> calculateIndices(int dim){
-    vector<int> indices;
-    for (int i = 0; i < dim - 1; ++i) {
-        for (int j = 0; j < dim - 1; ++j) {
-            indices.emplace_back(i * dim + j);
-            indices.emplace_back(i * dim + (j + 1));
-            indices.emplace_back((i + 1) * dim + j);
-
-            indices.emplace_back(i * dim + (j + 1));
-            indices.emplace_back((i + 1) * dim + (j + 1));
-            indices.emplace_back((i + 1) * dim + j);
-        }
-    }
-    return indices;
-}
-
 int main(int argc, char* argv[]) {
     renderer = new Renderer(1000, 1000);
 
@@ -325,37 +273,8 @@ int main(int argc, char* argv[]) {
     Light light;
     light.SetPosition(glm::vec3(10, 10, 10));
 
-    Particle particle{};
-    particle.position = glm::vec3(0, 30, 0);
-    particle.previousPosition = glm::vec3(0, 30, 0);
-
-    int dim = 30;
-    vector<vector<glm::vec3>> previousPos(dim, vector<glm::vec3>(dim));
-    vector<vector<glm::vec3>> currentPos(dim, vector<glm::vec3>(dim));
-    vector<vector<glm::vec3>> nextPos(dim, vector<glm::vec3>(dim));
-    float springConstant = 60;
-    float diagonalConstant = springConstant;
-    float equilibriumDistance = 0.1;
-    float diagonalEquilibrium = sqrt(2) * equilibriumDistance;
-
-    for (int i = 0; i < dim; ++i) {
-        for (int j = 0; j < dim; ++j) {
-            glm::vec3 particlePos = glm::vec3(-1.45f + i * equilibriumDistance, 1.05, -1.45f + j * equilibriumDistance);
-            currentPos[i][j] = particlePos;
-            previousPos[i][j] = particlePos;
-        }
-    }
-
-    vector<glm::vec3> vertices(dim * dim);
-    calculateVertices(currentPos, vertices);
-    vector<int> indices = calculateIndices(currentPos.size()); // always the same?
-    vector<glm::vec3> normals(dim * dim);
-    calculateNormals(currentPos, normals);
-
-    TriangleMesh* fabricMesh = new TriangleMesh(vertices, normals, indices);
-    Object* fabric = new Object(fabricMesh, LoadShader(argv[0], "scene"));
-    renderer->RegisterRenderable(fabric);
-    fabric->SendToGpu();
+    Cloth cloth(30, 60, LoadShader(argv[0], "scene"), glm::vec3(0, 1.1, 0), 3);
+    renderer->RegisterRenderable(cloth.object);
 
     float dt = 0.005f;
     while (!glfwWindowShouldClose(renderer->window)) {
@@ -363,77 +282,7 @@ int main(int argc, char* argv[]) {
             camera.Move(dt * camera.LocalToGlobalDir() * glm::vec4(moveVector, 0.0f));
         }
 
-        for (int i = 0; i < dim; ++i) {
-            for (int j = 0; j < dim; ++j) {
-                vector<glm::vec3> neighbors;
-                if (0 < i) {
-                    neighbors.push_back(currentPos[i - 1][j]);
-                } if (i < dim - 1) {
-                    neighbors.push_back(currentPos[i + 1][j]);
-                } if (0 < j) {
-                    neighbors.push_back(currentPos[i][j - 1]);
-                } if (j < dim - 1) {
-                    neighbors.push_back(currentPos[i][j + 1]);
-                }
-
-                glm::vec3 acceleration = glm::vec3(0, -0.1, 0);
-                glm::vec3 particlePosition = currentPos[i][j];
-                for (auto neighborPosition : neighbors) {
-                    float neighborDistance = glm::distance(particlePosition, neighborPosition);
-                    float dx = neighborDistance - equilibriumDistance;
-                    acceleration += (neighborPosition - particlePosition) / neighborDistance * dx * springConstant;
-                }
-
-                vector<glm::vec3> diagonalNeighbors;
-                if (0 < i && 0 < j) {
-                    diagonalNeighbors.push_back(currentPos[i - 1][j - 1]);
-                } if (i < dim - 1 && j < dim - 1) {
-                    diagonalNeighbors.push_back(currentPos[i + 1][j + 1]);
-                } if (i < dim - 1 && 0 < j) {
-                    diagonalNeighbors.push_back(currentPos[i + 1][j - 1]);
-                } if (0 < i && j < dim - 1) {
-                    diagonalNeighbors.push_back(currentPos[i - 1][j + 1]);
-                }
-
-                for (auto neighborPosition : diagonalNeighbors) {
-                    float neighborDistance = glm::distance(particlePosition, neighborPosition);
-                    float dx = neighborDistance - diagonalEquilibrium;
-                    acceleration += (neighborPosition - particlePosition) / neighborDistance * dx * diagonalConstant;
-                }
-
-
-                glm::vec3 nextPosition = 2.0f * particlePosition - previousPos[i][j] + acceleration * dt * dt;
-
-                glm::vec3 colliderCenter = glm::vec3(0, 0, 0);
-                float colliderRadius = 1;
-
-                if (glm::distance(nextPosition, colliderCenter) < colliderRadius) {
-                    nextPosition = colliderCenter + glm::normalize(nextPosition - colliderCenter) * colliderRadius;
-                }
-                nextPos[i][j] = nextPosition;
-            }
-        }
-        std::swap(previousPos, currentPos);
-        std::swap(currentPos, nextPos);
-
-        calculateVertices(currentPos, fabricMesh->vertices);
-        calculateNormals(currentPos, fabricMesh->normals);
-        fabricMesh->SendToGpu();
-
-        glm::vec3 acceleration = glm::vec3(0, -0.1, 0);
-
-        glm::vec3 colliderCenter = glm::vec3(0.1, 0, 0);
-        float colliderRadius = 1;
-
-        glm::vec3 previousPosition = particle.position;
-        particle.position = 2.0f * particle.position - particle.previousPosition + acceleration * dt * dt;
-        particle.previousPosition = previousPosition;
-
-        if (glm::distance(particle.position, colliderCenter) < colliderRadius) {
-            particle.position = colliderCenter + glm::normalize(particle.position - colliderCenter) * colliderRadius;
-        }
-
-        // object->transforms[0].SetPosition(particle.position);
+        cloth.Update(dt);
 
         renderer->Render(camera, light);
 

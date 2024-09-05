@@ -3,9 +3,6 @@
 in vec3 normal;
 in vec3 position;
 
-uniform mat4 model;
-uniform mat4 viewProjection;
-
 uniform vec3 eye;
 
 uniform vec3 lightPosition;

@@ -55,18 +55,20 @@ vector<int> CalcIndices(int dim){
     return indices;
 }
 
-Cloth::Cloth(int dimension, float springConstant, float equilibriumDistance, Shader* shader) :
+Cloth::Cloth(int dimension, float springConstant, Shader* shader, glm::vec3 position, float sideLength) :
 dim(dimension),
-springConstant(springConstant),
-equilibriumDistance(equilibriumDistance) {
+springConstant(springConstant) {
+    equilibriumDistance = sideLength / (dimension - 1);
     diagonalEquilibriumDistance = equilibriumDistance * sqrt(2);
     previousPos = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
     currentPos = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
     nextPos = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
 
+
+    glm::vec3 corner = position + glm::vec3(-0.5f * sideLength, 0, -0.5f * sideLength);
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
-            glm::vec3 particlePos = glm::vec3(-1.45f + i * equilibriumDistance, 1.05, -1.45f + j * equilibriumDistance);
+            glm::vec3 particlePos = corner + glm::vec3(i * equilibriumDistance, 0, j * equilibriumDistance);
             currentPos[i][j] = particlePos;
             previousPos[i][j] = particlePos;
         }
@@ -79,6 +81,7 @@ equilibriumDistance(equilibriumDistance) {
     CalcNormals(currentPos, normals);
 
     mesh = new TriangleMesh(vertices, normals, indices);
+    mesh->SendToGpu();
     object = new Object(mesh, shader);
 }
 
@@ -121,6 +124,22 @@ void Cloth::Update(float dt) {
                 acceleration += (neighborPosition - particlePosition) / neighborDistance * dx * springConstant;
             }
 
+            vector<glm::vec3> secondNeighbors;
+            if (1 < i) {
+                secondNeighbors.push_back(currentPos[i - 2][j]);
+            } if (i < dim - 2) {
+                secondNeighbors.push_back(currentPos[i + 2][j]);
+            } if (1 < j) {
+                secondNeighbors.push_back(currentPos[i][j - 2]);
+            } if (j < dim - 2) {
+                secondNeighbors.push_back(currentPos[i][j + 2]);
+            }
+
+            for (auto neighborPosition : secondNeighbors) {
+                float neighborDistance = glm::distance(particlePosition, neighborPosition);
+                float dx = neighborDistance - 2 * equilibriumDistance;
+                acceleration += (neighborPosition - particlePosition) / neighborDistance * dx * springConstant;
+            }
 
             glm::vec3 nextPosition = 2.0f * particlePosition - previousPos[i][j] + acceleration * dt * dt;
 
