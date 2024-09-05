@@ -257,23 +257,26 @@ int main(int argc, char* argv[]) {
     collider->material->SetShader(shader);
     renderer->RegisterRenderable(collider);
 
-    auto* object2 = new Object(triangleMesh, LoadShader(argv[0], "scene"));
-    object2->SendToGpu();
-    Transform transform;
-    transform.SetPosition(glm::vec3(3, 0, 0));
-    transform.SetRotation(1.5, glm::normalize(glm::vec3(1, 1, 1)));
-    transform.SetScale(glm::vec3(3, 2, 1));
-    object2->transforms[0] = transform;
-    object2->material->diffuse = glm::vec3(1, 0, 0);
-    object2->material->specular = glm::vec3(0, 0, 1);
-    renderer->RegisterRenderable(object2);
+//    auto* object2 = new Object(triangleMesh, LoadShader(argv[0], "scene"));
+//    object2->SendToGpu();
+//    Transform transform;
+//    transform.SetPosition(glm::vec3(3, 0, 0));
+//    transform.SetRotation(1.5, glm::normalize(glm::vec3(1, 1, 1)));
+//    transform.SetScale(glm::vec3(3, 2, 1));
+//    object2->transforms[0] = transform;
+//    object2->material->diffuse = glm::vec3(1, 0, 0);
+//    object2->material->specular = glm::vec3(0, 0, 1);
+//    renderer->RegisterRenderable(object2);
 
     camera.SetPosition(glm::vec3(0, 0, 5));
 
     Light light;
     light.SetPosition(glm::vec3(10, 10, 10));
 
-    Cloth cloth(30, 60, LoadShader(argv[0], "scene"), glm::vec3(0, 1.1, 0), 3);
+//    Cloth cloth(30, 20, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
+//    Cloth cloth(30, 15, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
+
+    Cloth cloth(60, 1000, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
     renderer->RegisterRenderable(cloth.object);
 
     float dt = 0.005f;
@@ -282,7 +285,7 @@ int main(int argc, char* argv[]) {
             camera.Move(dt * camera.LocalToGlobalDir() * glm::vec4(moveVector, 0.0f));
         }
 
-        cloth.Update(dt);
+        cloth.Update(dt, glm::vec3(0, -0.4, 0), glm::vec3(0, 0, 0));
 
         renderer->Render(camera, light);
 
