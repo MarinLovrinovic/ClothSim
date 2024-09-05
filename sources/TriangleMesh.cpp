@@ -3,13 +3,15 @@
 
 #include <utility>
 
-TriangleMesh::TriangleMesh(vector<glm::vec3> vertices, vector<glm::vec3> normals, vector<int> indices) :
+TriangleMesh::TriangleMesh(vector<glm::vec3> vertices, vector<glm::vec3> normals, vector<int> indices, vector<glm::vec3> uvCoords) :
         vertices(std::move(vertices)),
         normals(std::move(normals)),
-        indices(std::move(indices)) {
+        indices(std::move(indices)),
+        uvCoords(std::move(uvCoords)) {
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &verticesVBO);
     glGenBuffers(1, &normalsVBO);
+    glGenBuffers(1, &uvCoordsVBO);
     glGenBuffers(1, &EBO);
 }
 
@@ -24,8 +26,13 @@ void TriangleMesh::SendToGpu() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * normals.size(), &normals[0], GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
 
+    glBindBuffer(GL_ARRAY_BUFFER, uvCoordsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * uvCoords.size(), &uvCoords[0], GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * indices.size(), &indices[0], GL_STATIC_DRAW);

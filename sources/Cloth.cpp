@@ -93,7 +93,7 @@ void CalculateNormals(const vector<vector<glm::vec3>>& currentPositions, vector<
     }
 }
 
-vector<int> CalcIndices(int dim){
+vector<int> CalculateIndices(int dim){
     vector<int> indices;
     for (int i = 0; i < dim - 1; ++i) {
         for (int j = 0; j < dim - 1; ++j) {
@@ -107,6 +107,16 @@ vector<int> CalcIndices(int dim){
         }
     }
     return indices;
+}
+
+vector<glm::vec3> CalculateUVs(int dim) {
+    vector<glm::vec3> uvs;
+    for (int i = 0; i < dim; ++i) {
+        for (int j = 0; j < dim; ++j) {
+            uvs.emplace_back((float)i / (dim - 1), (float)j / (dim - 1), 0);
+        }
+    }
+    return uvs;
 }
 
 Cloth::Cloth(int dimension, float springConstant, Shader* shader, glm::vec3 position, float sideLength) :
@@ -135,13 +145,15 @@ springConstant(springConstant) {
     vector<glm::vec3> meshVertices(dim * dim);
     TwoDimToOneDim(currentPos, meshVertices);
 
-    vector<int> meshIndices = CalcIndices(currentPos.size());
+    vector<int> meshIndices = CalculateIndices(currentPos.size());
 
     CalculateNormals(currentPos, currentNormals);
     vector<glm::vec3> meshNormals(dim * dim);
     TwoDimToOneDim(currentNormals, meshNormals);
 
-    mesh = new TriangleMesh(meshVertices, meshNormals, meshIndices);
+    vector<glm::vec3> uvs = CalculateUVs(currentPos.size());
+
+    mesh = new TriangleMesh(meshVertices, meshNormals, meshIndices, uvs);
     mesh->SendToGpu();
     object = new Object(mesh, shader);
 }

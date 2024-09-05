@@ -110,6 +110,12 @@ TriangleMesh* ImportMesh(const string& path) {
         }
     }
 
+    vector<glm::vec3> uvCoords;
+    for (int i = 0; i < mesh->mNumVertices; i++) {
+        auto uv = mesh->mTextureCoords[0][i];
+        uvCoords.emplace_back(uv.x, uv.y, uv.z);
+    }
+
     vector<int> indices;
     for (int i = 0; i < mesh->mNumFaces; i++) {
         auto face = mesh->mFaces[i];
@@ -121,8 +127,7 @@ TriangleMesh* ImportMesh(const string& path) {
             indices.emplace_back(face.mIndices[j]);
         }
     }
-
-    return new TriangleMesh(vertices, normals, indices);
+    return new TriangleMesh(vertices, normals, indices, uvCoords);
 }
 
 Material* ImportMaterial(const string& path) {

@@ -2,6 +2,7 @@
 
 in vec3 normal;
 in vec3 position;
+in vec3 uv;
 
 uniform vec3 eye;
 
@@ -32,6 +33,8 @@ void main() {
     vec3 specular = materialSpecular * specularMultiplier * lightSpecular;
 
     vec3 light = ambient + (diffuse + specular) / (distanceToLight + 0.00001);
+    float curve = sin((uv.x + uv.y) * 50 + sin((uv.x - uv.y) * 50));
+    light *= vec3(max(curve, 0.3), 0.3, 0.3);
 
     FragColor = vec4(light, 1.0);
 }
