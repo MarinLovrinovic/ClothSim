@@ -1,3 +1,6 @@
+//
+// Created by lovri on 9/6/2024.
+//
 
 #ifndef CLOTHSIM_COLLIDER_H
 #define CLOTHSIM_COLLIDER_H
@@ -6,8 +9,7 @@
 
 class Collider {
 public:
-    glm::vec3 position;
-    float radius;
+    virtual glm::vec3 Expel(glm::vec3& particleNextPosition, const glm::vec3& particleVelocity) const = 0;
 };
 
 #endif //CLOTHSIM_COLLIDER_H

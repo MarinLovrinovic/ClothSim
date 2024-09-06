@@ -20,6 +20,7 @@ out vec4 FragColor;
 
 void main() {
     vec3 normalizedNormal = normalize(normal);
+    normalizedNormal = gl_FrontFacing ? normalizedNormal : -normalizedNormal;
 
     vec3 toEye = normalize(eye - position);
     vec3 toLight = lightPosition - position;
