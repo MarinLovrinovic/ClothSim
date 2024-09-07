@@ -2,6 +2,7 @@
 #include "TriangleMesh.h"
 #include <glm/glm.hpp>
 #include <set>
+#include <utility>
 
 template<class T>
 void TwoDimToOneDim(const vector<vector<T>>& twoDim, vector<T>& oneDim) {
@@ -55,18 +56,9 @@ vector<int> CalculateIndices(int dim){
             indices.emplace_back(i * dim + (j + 1));
             indices.emplace_back((i + 1) * dim + j);
 
-//            indices.emplace_back(i * dim + j);
-//            indices.emplace_back((i + 1) * dim + j);
-//            indices.emplace_back(i * dim + (j + 1));
-
-
             indices.emplace_back(i * dim + (j + 1));
             indices.emplace_back((i + 1) * dim + (j + 1));
             indices.emplace_back((i + 1) * dim + j);
-
-//            indices.emplace_back(i * dim + (j + 1));
-//            indices.emplace_back((i + 1) * dim + j);
-//            indices.emplace_back((i + 1) * dim + (j + 1));
         }
     }
     return indices;
@@ -82,7 +74,8 @@ vector<glm::vec3> CalculateUVs(int dim) {
     return uvs;
 }
 
-Cloth::Cloth(int dimension, float springConstant, float springDampingCoefficient, float dragCoefficient, Shader* shader, glm::vec3 position, float sideLength) :
+Cloth::Cloth(int dimension, float springConstant, float springDampingCoefficient, float dragCoefficient, Shader* shader,
+             glm::vec3 position, float sideLength, bool vertical, vector<glm::ivec2> fixed) :
 dim(dimension),
 springConstant(springConstant),
 springDampingCoefficient(springDampingCoefficient),
@@ -94,16 +87,33 @@ dragCoefficient(dragCoefficient) {
     currentNormals = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
     currentVelocities = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
     currentFrictions = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
+    colliderSurfaceNormals = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
+    this->fixed = vector<vector<bool>>(dim, vector<bool>(dim));
 
-    glm::vec3 corner = position + glm::vec3(-0.5f * sideLength, 0, -0.5f * sideLength);
+    glm::vec3 corner;
+    if (vertical) {
+        corner = position + glm::vec3(-0.5f * sideLength, -0.5f * sideLength, 0);
+    } else {
+        corner = position + glm::vec3(-0.5f * sideLength, 0, -0.5f * sideLength);
+    }
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
-            glm::vec3 particlePos = corner + glm::vec3(i * equilibriumDistance, 0, j * equilibriumDistance);
+            glm::vec3 particlePos;
+            if (vertical) {
+                particlePos = corner + glm::vec3(i * equilibriumDistance, j * equilibriumDistance, 0);
+            } else {
+                particlePos = corner + glm::vec3(i * equilibriumDistance, 0, j * equilibriumDistance);
+            }
             currentPos[i][j] = particlePos;
             previousPos[i][j] = particlePos;
             currentVelocities[i][j] = glm::vec3(0);
             currentFrictions[i][j] = glm::vec3(0);
+            colliderSurfaceNormals[i][j] = glm::vec3(0);
+            this->fixed[i][j] = false;
         }
+    }
+    for (glm::ivec2 f : fixed) {
+        this->fixed[f.x][f.y] = true;
     }
 
     vector<glm::vec3> meshVertices(dim * dim);
@@ -122,13 +132,8 @@ dragCoefficient(dragCoefficient) {
     object = new Object(mesh, shader);
 }
 
-typedef struct {
-    int i;
-    int j;
-} NeighborOffset;
-
 void Cloth::Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<Collider*>& colliders) {
-    vector<NeighborOffset> neighborOffsets = {
+    vector<glm::ivec2> neighborOffsets = {
             {-2, -1},
             {-2, 0},
             {-2, 1},
@@ -153,29 +158,29 @@ void Cloth::Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<
 
     map<int, map<int, float>> equilibriumDistances;
     for (auto n : neighborOffsets) {
-        equilibriumDistances[n.i][n.j] = sqrt(n.i * n.i + n.j * n.j);
+        equilibriumDistances[n.x][n.y] = sqrt(n.x * n.x + n.y * n.y);
     }
 
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
-//            if ((i <= 0) && (j <= 1 || dim - 2 <= j || j == dim / 2 || j == dim / 2 + 1)) {
-//                nextPos[i][j] = currentPos[i][j];
-//                continue;
-//            }
+            if (fixed[i][j]) {
+                nextPos[i][j] = currentPos[i][j];
+                continue;
+            }
 
             glm::vec3 particlePosition = currentPos[i][j];
             glm::vec3 particleVelocity = currentVelocities[i][j];
             glm::vec3 acceleration = gravity;
 
-            for (NeighborOffset neighborOffset : neighborOffsets) {
-                int neighborI = i + neighborOffset.i;
-                int neighborJ = j + neighborOffset.j;
+            for (glm::ivec2 neighborOffset : neighborOffsets) {
+                int neighborI = i + neighborOffset.x;
+                int neighborJ = j + neighborOffset.y;
                 if (neighborI < 0 || dim <= neighborI || neighborJ < 0 || dim <= neighborJ) {
                     continue;
                 }
 
                 glm::vec3 neighborPosition = currentPos[neighborI][neighborJ];
-                float unitDistancesFromParticle = equilibriumDistances[neighborOffset.i][neighborOffset.j];
+                float unitDistancesFromParticle = equilibriumDistances[neighborOffset.x][neighborOffset.y];
                 float neighborEquilibriumDistance = equilibriumDistance * unitDistancesFromParticle;
 
                 float neighborDistance = glm::distance(particlePosition, neighborPosition);

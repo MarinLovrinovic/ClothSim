@@ -70,14 +70,14 @@ Shader* LoadShader(char* path, char* naziv) {
 }
 
 
-TriangleMesh* ImportMesh(const string& path) {
+TriangleMesh* ImportMesh(const string& path, const string& model) {
     Assimp::Importer importer;
 
     std::string dirPath(path, 0, path.find_last_of("\\/"));
     std::string resPath(dirPath);
     resPath.append("\\resources"); //za linux pretvoriti u forwardslash
     std::string objPath(resPath);
-    objPath.append("\\sphere\\sphere.obj"); //za linux pretvoriti u forwardslash
+    objPath.append("\\" + model + "\\" + model + ".obj"); //za linux pretvoriti u forwardslash
 
     const aiScene* scene = importer.ReadFile(objPath.c_str(),
                                              aiProcess_CalcTangentSpace |
@@ -131,14 +131,14 @@ TriangleMesh* ImportMesh(const string& path) {
     return new TriangleMesh(vertices, normals, indices, uvCoords);
 }
 
-Material* ImportMaterial(const string& path) {
+Material* ImportMaterial(const string& path, const string& model) {
     Assimp::Importer importer;
 
     std::string dirPath(path, 0, path.find_last_of("\\/"));
     std::string resPath(dirPath);
     resPath.append("\\resources"); //za linux pretvoriti u forwardslash
     std::string objPath(resPath);
-    objPath.append("\\sphere\\sphere.obj"); //za linux pretvoriti u forwardslash
+    objPath.append("\\" + model + "\\" + model + ".obj"); //za linux pretvoriti u forwardslash
 
     const aiScene* scene = importer.ReadFile(objPath.c_str(),
                                              aiProcess_CalcTangentSpace |
@@ -238,21 +238,64 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                            (backPressed ? 1.0f : 0.0f) + (forwardPressed ? -1.0f : 0.0f));
 }
 
-SphereCollider* AddSphereCollider(char* argv0, Shader* shader, glm::vec3 position, float radius, float frictionCoefficient) {
-    auto* triangleMesh = ImportMesh(string(argv0));
+string argv0;
+Shader* shader;
+
+SphereCollider* AddSphereCollider(glm::vec3 position, float radius, float frictionCoefficient,
+                                  glm::vec3 backgroundColor = glm::vec3(0.3, 0.3, 0.3),
+                                  glm::vec3 curveColor = glm::vec3(1, 0.3, 0.3),
+                                  float curvature = 1, float curveThickness = 1, float curveFrequency = 1) {
+    auto* triangleMesh = ImportMesh(argv0, "sphere");
     triangleMesh->Normalize();
 
     auto* collider = new Object(triangleMesh, shader);
     collider->SendToGpu();
-    collider->transforms[0].SetScale(glm::vec3(0.93));
-    collider->material = ImportMaterial(string(argv0));
+    collider->transforms[0].SetPosition(position);
+    collider->transforms[0].SetScale(glm::vec3(0.92f * radius));
+    collider->material = ImportMaterial(argv0, "sphere");
     collider->material->SetShader(shader);
+    collider->material->backgroundColor = backgroundColor;
+    collider->material->curveColor = curveColor;
+    collider->material->curvature = curvature;
+    collider->material->curveThickness = curveThickness;
+    collider->material->curveFrequency = curveFrequency;
+
     renderer->RegisterRenderable(collider);
 
     return new SphereCollider(position, radius, frictionCoefficient);
 }
 
+
+CubeCollider* AddCubeCollider(glm::vec3 position, float sideLength, float frictionCoefficient,
+                              glm::vec3 backgroundColor = glm::vec3(0.3, 0.3, 0.3),
+                              glm::vec3 curveColor = glm::vec3(1, 0.3, 0.3),
+                              float curvature = 1, float curveThickness = 1, float curveFrequency = 1) {
+    auto* triangleMesh = ImportMesh(argv0, "cube");
+    triangleMesh->Normalize();
+
+    auto* collider = new Object(triangleMesh, shader);
+    collider->SendToGpu();
+    collider->transforms[0].SetPosition(position);
+    collider->transforms[0].SetScale(glm::vec3(0.42f * sideLength));
+    collider->material = ImportMaterial(argv0, "cube");
+    collider->material->SetShader(shader);
+    collider->material->backgroundColor = backgroundColor;
+    collider->material->curveColor = curveColor;
+    collider->material->curvature = curvature;
+    collider->material->curveThickness = curveThickness;
+    collider->material->curveFrequency = curveFrequency;
+
+    renderer->RegisterRenderable(collider);
+
+    return new CubeCollider(position, sideLength, frictionCoefficient);
+}
+
+bool operator<(const glm::ivec2& a, const glm::ivec2& b) {
+    return std::tie(a.x, a.y) < std::tie(b.x, b.y);
+}
+
 int main(int argc, char* argv[]) {
+    argv0 = string(argv[0]);
     renderer = new Renderer(1000, 1000);
 
     glfwSetFramebufferSizeCallback(renderer->window, FramebufferSizeCallback); //funkcija koja se poziva prilikom mijenjanja velicine prozora
@@ -260,26 +303,8 @@ int main(int argc, char* argv[]) {
     glfwSetKeyCallback(renderer->window, KeyCallback);
     glfwSetInputMode(renderer->window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    auto* triangleMesh = ImportMesh(string(argv[0]));
-    triangleMesh->Normalize();
-
-//    auto* object = new Object(triangleMesh, LoadShader(argv[0], "scene"));
-//    object->SendToGpu();
-//    object->material = ImportMaterial(string(argv[0]));
-//    renderer->RegisterRenderable(object);
-
-    Shader* shader = LoadShader(argv[0], "scene");
-    auto* collider = new Object(triangleMesh, shader);
-    collider->SendToGpu();
-    collider->transforms[0].SetScale(glm::vec3(0.93));
-    collider->material = ImportMaterial(string(argv[0]));
-    collider->material->SetShader(shader);
-    renderer->RegisterRenderable(collider);
-
-    camera.SetPosition(glm::vec3(0, 2, 5));
-
-
+    shader = LoadShader(argv[0], "scene");
+    Light light;
 
 //    Cloth cloth(30, 40, 0.01, 0.001, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
 //    Cloth cloth(30, 20, 0.01, 0.001, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
@@ -287,23 +312,176 @@ int main(int argc, char* argv[]) {
 //    Cloth cloth(60, 1000, 0.01, 0.001, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
 
 
-    int dimension = 20;
+// FULLY CONNECTED FLAG
+//    int dim = 20;
+//    float springConstant = 40;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 6, 0.3);
+//    float sideLength = 4;
+//    bool vertical = true;
+//    vector<glm::ivec2> fixed;
+//    for (int i = 0; i < dim; ++i) {
+//        fixed.emplace_back(0, i);
+//    }
+//    glm::vec3 clothTexBackgroundColor(0.5, 0, 0.5);
+//    glm::vec3 clothTexCurveColor(1, 0, 0.3);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 1;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(1.5, 0, 0.3);
+//    vector<Collider*> colliders = { };
+//    Light light;
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 5, 8));
+
+
+// WIND BLOWING INTO A SPHERE
+//    int dim = 20;
+//    float springConstant = 60;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 6, 0);
+//    float sideLength = 4;
+//    bool vertical = true;
+//    vector<glm::ivec2> fixed = {
+//            {0, dim - 2},
+//            {0, dim - 1},
+//            {1, dim - 2},
+//            {1, dim - 1},
+//            {dim / 2, dim - 2},
+//            {dim / 2, dim - 1},
+//            {dim / 2 - 1, dim - 2},
+//            {dim / 2 - 1, dim - 1},
+//            {dim - 2, dim - 2},
+//            {dim - 2, dim - 1},
+//            {dim - 1, dim - 2},
+//            {dim - 1, dim - 1},
+//    };
+//    glm::vec3 clothTexBackgroundColor(0.5, 0, 0.5);
+//    glm::vec3 clothTexCurveColor(1, 0, 0.3);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 1;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(0.4, 0, -1);
+//    vector<Collider*> colliders = {
+//            AddSphereCollider(glm::vec3(0, 6, -1), 1, 50, glm::vec3(1, 0.3, 0), glm::vec3(0, 0, 1), 0, 5),
+//    };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 5, 8));
+
+
+// FALLING ONTO CUBE
+//    int dim = 20;
+//    float springConstant = 60;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 1.5, 0);
+//    float sideLength = 4;
+//    bool vertical = false;
+//    vector<glm::ivec2> fixed = { };
+//    glm::vec3 clothTexBackgroundColor(0.5, 0, 0.5);
+//    glm::vec3 clothTexCurveColor(1, 0, 0.3);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 1;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(0, 0, 0);
+//    vector<Collider*> colliders = {
+//            AddCubeCollider(glm::vec3(0, 0, 0), 1.8, 50, glm::vec3(0.5, 0.5, 0.5), glm::vec3(0.5, 0.5, 0.5))
+//    };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 3, 8));
+
+
+// FALLING ONTO SPHERE WINDY
+//    int dim = 20;
+//    float springConstant = 60;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 1.5, 0);
+//    float sideLength = 4;
+//    bool vertical = false;
+//    vector<glm::ivec2> fixed = { };
+//    glm::vec3 clothTexBackgroundColor(0.5, 0, 0.5);
+//    glm::vec3 clothTexCurveColor(1, 0, 0.3);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 1;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(1, 1, 2);
+//    vector<Collider*> colliders = {
+//            AddSphereCollider(glm::vec3(0, 0, 0), 1, 50, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
+//    };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 3, 8));
+
+
+// FALLING ONTO SPHERE
+//    int dim = 20;
+//    float springConstant = 40;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 1.5, 0);
+//    float sideLength = 4;
+//    bool vertical = false;
+//    vector<glm::ivec2> fixed = { };
+//    glm::vec3 clothTexBackgroundColor(0.3, 0.3, 0.3);
+//    glm::vec3 clothTexCurveColor(1, 0.3, 0.3);
+//    float clothTexCurvature = 1;
+//    float clothTexCurveThickness = 1;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(0, 0, 0);
+//    vector<Collider*> colliders = {
+//            AddSphereCollider(glm::vec3(0, 0, 0), 1, 50, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
+//    };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 2, 8));
+
+    int dim = 20;
     float springConstant = 40;
     float springDampingCoefficient = 0.5;
     float dragCoefficient = 0.01;
-    glm::vec3 clothPosition(0, 2, 0);
+    glm::vec3 clothPosition(0, 1.5, 0);
     float sideLength = 4;
+    bool vertical = false;
+    vector<glm::ivec2> fixed = { };
+    glm::vec3 clothTexBackgroundColor(0.3, 0.3, 0.3);
+    glm::vec3 clothTexCurveColor(1, 0.3, 0.3);
+    float clothTexCurvature = 1;
+    float clothTexCurveThickness = 1;
+    float clothTexCurveFrequency = 1;
+
     float dt = 0.005f;
     glm::vec3 gravity(0, -0.4, 0);
     glm::vec3 airflow(0, 0, 0);
     vector<Collider*> colliders = {
-            new SphereCollider(glm::vec3(0), 1, 100),
-            new CubeCollider(glm::vec3(0), 1.5, 100)
+            AddSphereCollider(glm::vec3(0, 0, 0), 1, 50, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
     };
-    Light light;
     light.SetPosition(glm::vec3(10, 10, 10));
+    camera.SetPosition(glm::vec3(0, 2, 8));
 
-    Cloth cloth(dimension, springConstant, springDampingCoefficient, dragCoefficient, shader, clothPosition, sideLength);
+
+    Cloth cloth(dim, springConstant, springDampingCoefficient, dragCoefficient, shader, clothPosition, sideLength, vertical, fixed);
+    cloth.object->material->backgroundColor = clothTexBackgroundColor;
+    cloth.object->material->curveColor = clothTexCurveColor;
+    cloth.object->material->curvature = clothTexCurvature;
+    cloth.object->material->curveThickness = clothTexCurveThickness;
+    cloth.object->material->curveFrequency = clothTexCurveFrequency;
+
     renderer->RegisterRenderable(cloth.object);
 
     while (!glfwWindowShouldClose(renderer->window)) {
@@ -321,5 +499,8 @@ int main(int argc, char* argv[]) {
         glfwSetCursorPos(renderer->window, renderer->width * 0.5, renderer->height * 0.5);
     }
     delete renderer;
+    for (auto collider : colliders) {
+        delete collider;
+    }
     return EXIT_SUCCESS;
 }

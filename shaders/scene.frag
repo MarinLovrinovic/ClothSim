@@ -16,6 +16,12 @@ uniform vec3 materialDiffuse;
 uniform vec3 materialSpecular;
 uniform float materialShininess;
 
+uniform vec3 backgroundColor;
+uniform vec3 curveColor;
+uniform float curvature;
+uniform float curveThickness;
+uniform float curveFrequency;
+
 out vec4 FragColor;
 
 void main() {
@@ -34,8 +40,9 @@ void main() {
     vec3 specular = materialSpecular * specularMultiplier * lightSpecular;
 
     vec3 light = ambient + (diffuse + specular) / (distanceToLight + 0.00001);
-    float curve = sin((uv.x + uv.y) * 50 + sin((uv.x - uv.y) * 50));
-    light *= vec3(max(curve, 0.3), 0.3, 0.3);
+    float curve = clamp(sin(((uv.x + uv.y) * 50 + curvature * sin((uv.x - uv.y) * 50 * curveFrequency)) / curveThickness), 0, 1);
+
+    light *= mix(backgroundColor, curveColor, curve);
 
     FragColor = vec4(light, 1.0);
 }

@@ -21,6 +21,8 @@ private:
     vector<vector<glm::vec3>> currentNormals;
     vector<vector<glm::vec3>> currentVelocities;
     vector<vector<glm::vec3>> currentFrictions;
+    vector<vector<glm::vec3>> colliderSurfaceNormals;
+    vector<vector<bool>> fixed;
     float springConstant;
     float springDampingCoefficient;
     float dragCoefficient;
@@ -31,7 +33,8 @@ private:
 public:
     Object* object;
 
-    Cloth(int dimension, float springConstant, float springDampingCoefficient, float dragCoefficient, Shader* shader, glm::vec3 position, float sideLength);
+    Cloth(int dimension, float springConstant, float springDampingCoefficient, float dragCoefficient, Shader* shader,
+          glm::vec3 position, float sideLength, bool vertical, vector<glm::ivec2> fixed);
     void Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<Collider*>& colliders);
 };
 

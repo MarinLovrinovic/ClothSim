@@ -10,6 +10,7 @@
 class Collider {
 public:
     virtual glm::vec3 Expel(glm::vec3& particleNextPosition, const glm::vec3& particleVelocity) const = 0;
+    virtual ~Collider() = default;
 };
 
 #endif //CLOTHSIM_COLLIDER_H

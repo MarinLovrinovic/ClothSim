@@ -12,7 +12,7 @@ public:
     virtual void SendToGpu() = 0;
     virtual void Draw() = 0;
     virtual void Bind() = 0;
-    virtual ~Renderable() {};
+    virtual ~Renderable() = default;
 };
 
 
