@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <set>
 #include <utility>
+#include <cmath>
 
 template<class T>
 void TwoDimToOneDim(const vector<vector<T>>& twoDim, vector<T>& oneDim) {
@@ -80,60 +81,16 @@ dim(dimension),
 springConstant(springConstant),
 springDampingCoefficient(springDampingCoefficient),
 dragCoefficient(dragCoefficient) {
-    equilibriumDistance = sideLength / (dimension - 1);
-    previousPos = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
-    currentPos = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
-    nextPos = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
+    previousPositions = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
+    currentPositions = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
+    nextPositions = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
     currentNormals = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
     currentVelocities = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
-    currentFrictions = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
-    colliderSurfaceNormals = vector<vector<glm::vec3>>(dim, vector<glm::vec3>(dim));
+    colliderSurfaces = vector<vector<glm::vec4>>(dim, vector<glm::vec4>(dim));
     this->fixed = vector<vector<bool>>(dim, vector<bool>(dim));
 
-    glm::vec3 corner;
-    if (vertical) {
-        corner = position + glm::vec3(-0.5f * sideLength, -0.5f * sideLength, 0);
-    } else {
-        corner = position + glm::vec3(-0.5f * sideLength, 0, -0.5f * sideLength);
-    }
-    for (int i = 0; i < dim; ++i) {
-        for (int j = 0; j < dim; ++j) {
-            glm::vec3 particlePos;
-            if (vertical) {
-                particlePos = corner + glm::vec3(i * equilibriumDistance, j * equilibriumDistance, 0);
-            } else {
-                particlePos = corner + glm::vec3(i * equilibriumDistance, 0, j * equilibriumDistance);
-            }
-            currentPos[i][j] = particlePos;
-            previousPos[i][j] = particlePos;
-            currentVelocities[i][j] = glm::vec3(0);
-            currentFrictions[i][j] = glm::vec3(0);
-            colliderSurfaceNormals[i][j] = glm::vec3(0);
-            this->fixed[i][j] = false;
-        }
-    }
-    for (glm::ivec2 f : fixed) {
-        this->fixed[f.x][f.y] = true;
-    }
-
-    vector<glm::vec3> meshVertices(dim * dim);
-    TwoDimToOneDim(currentPos, meshVertices);
-
-    vector<int> meshIndices = CalculateIndices(currentPos.size());
-
-    CalculateNormals(currentPos, currentNormals);
-    vector<glm::vec3> meshNormals(dim * dim);
-    TwoDimToOneDim(currentNormals, meshNormals);
-
-    vector<glm::vec3> uvs = CalculateUVs(currentPos.size());
-
-    mesh = new TriangleMesh(meshVertices, meshNormals, meshIndices, uvs);
-    mesh->SendToGpu();
-    object = new Object(mesh, shader);
-}
-
-void Cloth::Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<Collider*>& colliders) {
-    vector<glm::ivec2> neighborOffsets = {
+    equilibriumDistance = sideLength / (dimension - 1);
+    neighborOffsets = {
             {-2, -1},
             {-2, 0},
             {-2, 1},
@@ -155,20 +112,60 @@ void Cloth::Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<
             {2, 0},
             {2, 1}
     };
-
-    map<int, map<int, float>> equilibriumDistances;
-    for (auto n : neighborOffsets) {
-        equilibriumDistances[n.x][n.y] = sqrt(n.x * n.x + n.y * n.y);
+    for (glm::ivec2 n : neighborOffsets) {
+        neighborDistances[n.x][n.y] = sqrt(n.x * n.x + n.y * n.y);
     }
 
+    glm::vec3 corner;
+    if (vertical) {
+        corner = position + glm::vec3(-0.5f * sideLength, -0.5f * sideLength, 0);
+    } else {
+        corner = position + glm::vec3(-0.5f * sideLength, 0, -0.5f * sideLength);
+    }
+    for (int i = 0; i < dim; ++i) {
+        for (int j = 0; j < dim; ++j) {
+            glm::vec3 particlePos;
+            if (vertical) {
+                particlePos = corner + glm::vec3(i * equilibriumDistance, j * equilibriumDistance, 0);
+            } else {
+                particlePos = corner + glm::vec3(i * equilibriumDistance, 0, j * equilibriumDistance);
+            }
+            currentPositions[i][j] = particlePos;
+            previousPositions[i][j] = particlePos;
+            currentVelocities[i][j] = glm::vec3(0);
+            colliderSurfaces[i][j] = glm::vec4(0);
+            this->fixed[i][j] = false;
+        }
+    }
+    for (glm::ivec2 f : fixed) {
+        this->fixed[f.x][f.y] = true;
+    }
+
+    vector<glm::vec3> meshVertices(dim * dim);
+    TwoDimToOneDim(currentPositions, meshVertices);
+
+    vector<int> meshIndices = CalculateIndices(currentPositions.size());
+
+    CalculateNormals(currentPositions, currentNormals);
+    vector<glm::vec3> meshNormals(dim * dim);
+    TwoDimToOneDim(currentNormals, meshNormals);
+
+    vector<glm::vec3> uvs = CalculateUVs(currentPositions.size());
+
+    mesh = new TriangleMesh(meshVertices, meshNormals, meshIndices, uvs);
+    mesh->SendToGpu();
+    object = new Object(mesh, shader);
+}
+
+void Cloth::Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<Collider*>& colliders) {
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
             if (fixed[i][j]) {
-                nextPos[i][j] = currentPos[i][j];
+                nextPositions[i][j] = currentPositions[i][j];
                 continue;
             }
 
-            glm::vec3 particlePosition = currentPos[i][j];
+            glm::vec3 particlePosition = currentPositions[i][j];
             glm::vec3 particleVelocity = currentVelocities[i][j];
             glm::vec3 acceleration = gravity;
 
@@ -179,8 +176,8 @@ void Cloth::Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<
                     continue;
                 }
 
-                glm::vec3 neighborPosition = currentPos[neighborI][neighborJ];
-                float unitDistancesFromParticle = equilibriumDistances[neighborOffset.x][neighborOffset.y];
+                glm::vec3 neighborPosition = currentPositions[neighborI][neighborJ];
+                float unitDistancesFromParticle = neighborDistances[neighborOffset.x][neighborOffset.y];
                 float neighborEquilibriumDistance = equilibriumDistance * unitDistancesFromParticle;
 
                 float neighborDistance = glm::distance(particlePosition, neighborPosition);
@@ -199,34 +196,48 @@ void Cloth::Update(float dt, glm::vec3 gravity, glm::vec3 airflow, const vector<
             // calculate air resistance
             glm::vec3 velocityInAir = particleVelocity - airflow;
 
-            acceleration +=
-                    -dragCoefficient * abs(glm::dot(velocityInAir, currentNormals[i][j])) * velocityInAir;
+            acceleration += -dragCoefficient
+                    * abs(glm::dot(velocityInAir, currentNormals[i][j])) * velocityInAir;
 
-            // add friction
-            acceleration += currentFrictions[i][j];
+            // calculate friction
+            glm::vec4 colliderSurface = colliderSurfaces[i][j];
+            if (colliderSurface != glm::vec4(0)) {
+                glm::vec3 colliderNormal = colliderSurface;
+                float frictionCoefficient = colliderSurface.w;
 
-            glm::vec3 nextPosition = 2.0f * particlePosition - previousPos[i][j] + acceleration * dt * dt;
+                glm::vec3 tangentialVelocity = particleVelocity
+                        - glm::dot(particleVelocity, colliderNormal) * colliderNormal;
 
-            // calculate collisions and friction
-            currentFrictions[i][j] = glm::vec3(0);
-            for (Collider *const collider : colliders) {
-                currentFrictions[i][j] += collider->Expel(nextPosition, particleVelocity);
+                float tangentialSpeed = glm::length(tangentialVelocity);
+                if (tangentialSpeed > 0) {
+                    glm::vec3 tangentialVelocityDirection = tangentialVelocity / tangentialSpeed;
+                    float surfaceNormalForce = max(0, glm::dot(-acceleration, colliderNormal));
+                    acceleration += -frictionCoefficient * tangentialVelocityDirection * surfaceNormalForce;
+                }
             }
-            nextPos[i][j] = nextPosition;
+
+            glm::vec3 nextPosition = 2.0f * particlePosition - previousPositions[i][j] + acceleration * dt * dt;
+
+            // calculate collisions
+            colliderSurfaces[i][j] = glm::vec4(0);
+            for (Collider *const collider : colliders) {
+                colliderSurfaces[i][j] = collider->Displace(particlePosition, nextPosition);
+            }
+            nextPositions[i][j] = nextPosition;
         }
     }
-    std::swap(previousPos, currentPos);
-    std::swap(currentPos, nextPos);
+    std::swap(previousPositions, currentPositions);
+    std::swap(currentPositions, nextPositions);
 
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
-            currentVelocities[i][j] = (currentPos[i][j] - previousPos[i][j]) / dt;
+            currentVelocities[i][j] = (currentPositions[i][j] - previousPositions[i][j]) / dt;
         }
     }
 
-    TwoDimToOneDim(currentPos, mesh->vertices);
+    TwoDimToOneDim(currentPositions, mesh->vertices);
 
-    CalculateNormals(currentPos, currentNormals);
+    CalculateNormals(currentPositions, currentNormals);
     TwoDimToOneDim(currentNormals, mesh->normals);
 
     mesh->SendToGpu();

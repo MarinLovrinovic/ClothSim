@@ -15,19 +15,20 @@ using namespace std;
 class Cloth {
 private:
     int dim;
-    vector<vector<glm::vec3>> previousPos;
-    vector<vector<glm::vec3>> currentPos;
-    vector<vector<glm::vec3>> nextPos;
+    vector<vector<glm::vec3>> previousPositions;
+    vector<vector<glm::vec3>> currentPositions;
+    vector<vector<glm::vec3>> nextPositions;
     vector<vector<glm::vec3>> currentNormals;
     vector<vector<glm::vec3>> currentVelocities;
-    vector<vector<glm::vec3>> currentFrictions;
-    vector<vector<glm::vec3>> colliderSurfaceNormals;
+    vector<vector<glm::vec4>> colliderSurfaces;
     vector<vector<bool>> fixed;
     float springConstant;
     float springDampingCoefficient;
     float dragCoefficient;
 
     float equilibriumDistance;
+    vector<glm::ivec2> neighborOffsets;
+    map<int, map<int, float>> neighborDistances;
 
     TriangleMesh* mesh;
 public:

@@ -7,6 +7,7 @@
 
 #include "Collider.h"
 #include "glm/vec3.hpp"
+#include "glm/vec4.hpp"
 
 class CubeCollider : public Collider {
 public:
@@ -14,7 +15,7 @@ public:
     float sideLength;
     float frictionCoefficient;
     CubeCollider(glm::vec3 position, float sideLength, float frictionCoefficient);
-    glm::vec3 Expel(glm::vec3& particleNextPosition, const glm::vec3& particleVelocity) const override;
+    glm::vec4 Displace(glm::vec3 particlePosition, glm::vec3& particleNextPosition) const override;
 };
 
 #endif //CLOTHSIM_CUBECOLLIDER_H

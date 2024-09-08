@@ -11,15 +11,16 @@ SphereCollider::SphereCollider(glm::vec3 position, float radius, float frictionC
 
 }
 
-glm::vec3 SphereCollider::Expel(glm::vec3 &particleNextPosition, const glm::vec3 &particleVelocity) const {
-    if (glm::distance(particleNextPosition, position) > radius) {
-        return glm::vec3(0);
+glm::vec4 SphereCollider::Displace(glm::vec3 particlePosition, glm::vec3 &particleNextPosition) const {
+    float distanceFromCenter = glm::distance(particleNextPosition, position);
+    if (distanceFromCenter >= radius) {
+        return glm::vec4(0);
     }
-    glm::vec3 normal = glm::normalize(particleNextPosition - position);
+
+    glm::vec3 normal = (particleNextPosition - position) / distanceFromCenter;
 
     particleNextPosition = position + normal * radius;
 
-    glm::vec3 tangentialVelocity = particleVelocity - glm::dot(particleVelocity, normal) * normal;
-    return -frictionCoefficient * tangentialVelocity;
+    return { normal, frictionCoefficient };
 }
 

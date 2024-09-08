@@ -23,7 +23,6 @@
 #include "Camera.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "Light.h"
-#include "Particle.h"
 #include "Cloth.h"
 #include "CubeCollider.h"
 
@@ -311,6 +310,117 @@ int main(int argc, char* argv[]) {
 //    Cloth cloth(30, 15, 0.01, 0.001, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
 //    Cloth cloth(60, 1000, 0.01, 0.001, LoadShader(argv[0], "scene"), glm::vec3(0, 1, 0), 4);
 
+// HANGING TWO ATTACHMENT POINT FLAG (WIND)
+//    int dim = 20;
+//    float springConstant = 100;
+//    float springDampingCoefficient = 1;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 6, 0.3);
+//    float sideLength = 4;
+//    bool vertical = true;
+//    vector<glm::ivec2> fixed = {
+//            {0, dim - 1},
+//            {1, dim - 1},
+//            {dim - 2, dim - 1},
+//            {dim - 1, dim - 1}
+//    };
+//    glm::vec3 clothTexBackgroundColor(0.2078,0.0039,0.2471);
+//    glm::vec3 clothTexCurveColor(0.9412,0.9294,0.8);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 4;
+//    float clothTexCurveFrequency = 0.4;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(0, 0, -1);
+//    vector<Collider*> colliders = { };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 5, 9));
+
+
+// HANGING TWO ATTACHMENT POINT FLAG (NO WIND)
+//    int dim = 20;
+//    float springConstant = 60;
+//    float springDampingCoefficient = 20;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 6, 0.3);
+//    float sideLength = 4;
+//    bool vertical = true;
+//    vector<glm::ivec2> fixed = {
+//            {0, dim - 1},
+//            {1, dim - 1},
+//            {dim - 2, dim - 1},
+//            {dim - 1, dim - 1}
+//    };
+//    glm::vec3 clothTexBackgroundColor(0.2078,0.0039,0.2471);
+//    glm::vec3 clothTexCurveColor(0.9412,0.9294,0.8);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 4;
+//    float clothTexCurveFrequency = 0.2;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(0, 0, 0);
+//    vector<Collider*> colliders = { };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 5, 9));
+
+
+// TWO ATTACHMENT POINT FLAG
+//    int dim = 20;
+//    float springConstant = 40;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 6, 0.3);
+//    float sideLength = 4;
+//    bool vertical = true;
+//    vector<glm::ivec2> fixed = {
+//            {0, 0},
+//            {0, 1},
+//            {0, dim - 2},
+//            {0, dim - 1}
+//    };
+//    glm::vec3 clothTexBackgroundColor(0.4, 0.4, 0.4);
+//    glm::vec3 clothTexCurveColor(0.4, 1, 0.4);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 4;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(1.5, 0, 0.3);
+//    vector<Collider*> colliders = { };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 5, 9));
+
+// THREE ATTACHMENT POINT FLAG
+//    int dim = 20;
+//    float springConstant = 40;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 6, 0.3);
+//    float sideLength = 4;
+//    bool vertical = true;
+//    vector<glm::ivec2> fixed = {
+//            {0, 0},
+//            {0, 1},
+//            {0, dim / 2},
+//            {0, dim / 2 + 1},
+//            {0, dim - 2},
+//            {0, dim - 1}
+//    };
+//    glm::vec3 clothTexBackgroundColor(0.0078,0.2039,0.2471);
+//    glm::vec3 clothTexCurveColor(0.9412,0.9294,0.8);
+//    float clothTexCurvature = 5;
+//    float clothTexCurveThickness = 4;
+//    float clothTexCurveFrequency = 0.2;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(1.5, 0, 0.3);
+//    vector<Collider*> colliders = { };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 5, 9));
 
 // FULLY CONNECTED FLAG
 //    int dim = 20;
@@ -324,17 +434,16 @@ int main(int argc, char* argv[]) {
 //    for (int i = 0; i < dim; ++i) {
 //        fixed.emplace_back(0, i);
 //    }
-//    glm::vec3 clothTexBackgroundColor(0.5, 0, 0.5);
-//    glm::vec3 clothTexCurveColor(1, 0, 0.3);
+//    glm::vec3 clothTexBackgroundColor(0.2, 0.2, 0.2);
+//    glm::vec3 clothTexCurveColor(0.3, 1, 0.3);
 //    float clothTexCurvature = 5;
-//    float clothTexCurveThickness = 1;
+//    float clothTexCurveThickness = 4;
 //    float clothTexCurveFrequency = 1;
 //
 //    float dt = 0.005f;
 //    glm::vec3 gravity(0, -0.4, 0);
 //    glm::vec3 airflow(1.5, 0, 0.3);
 //    vector<Collider*> colliders = { };
-//    Light light;
 //    light.SetPosition(glm::vec3(10, 10, 10));
 //    camera.SetPosition(glm::vec3(0, 5, 8));
 
@@ -371,7 +480,7 @@ int main(int argc, char* argv[]) {
 //    glm::vec3 gravity(0, -0.4, 0);
 //    glm::vec3 airflow(0.4, 0, -1);
 //    vector<Collider*> colliders = {
-//            AddSphereCollider(glm::vec3(0, 6, -1), 1, 50, glm::vec3(1, 0.3, 0), glm::vec3(0, 0, 1), 0, 5),
+//            AddSphereCollider(glm::vec3(0, 6, -1), 1, 5, glm::vec3(1, 0.3, 0), glm::vec3(0, 0, 1), 0, 5),
 //    };
 //    light.SetPosition(glm::vec3(10, 10, 10));
 //    camera.SetPosition(glm::vec3(0, 5, 8));
@@ -379,7 +488,7 @@ int main(int argc, char* argv[]) {
 
 // FALLING ONTO CUBE
 //    int dim = 20;
-//    float springConstant = 60;
+//    float springConstant = 80;
 //    float springDampingCoefficient = 0.5;
 //    float dragCoefficient = 0.01;
 //    glm::vec3 clothPosition(0, 1.5, 0);
@@ -392,11 +501,11 @@ int main(int argc, char* argv[]) {
 //    float clothTexCurveThickness = 1;
 //    float clothTexCurveFrequency = 1;
 //
-//    float dt = 0.005f;
+//    float dt = 0.01f;
 //    glm::vec3 gravity(0, -0.4, 0);
 //    glm::vec3 airflow(0, 0, 0);
 //    vector<Collider*> colliders = {
-//            AddCubeCollider(glm::vec3(0, 0, 0), 1.8, 50, glm::vec3(0.5, 0.5, 0.5), glm::vec3(0.5, 0.5, 0.5))
+//            AddCubeCollider(glm::vec3(0, 0, 0), 1.8, 1, glm::vec3(0.5, 0.5, 0.5), glm::vec3(0.5, 0.5, 0.5))
 //    };
 //    light.SetPosition(glm::vec3(10, 10, 10));
 //    camera.SetPosition(glm::vec3(0, 3, 8));
@@ -406,7 +515,7 @@ int main(int argc, char* argv[]) {
 //    int dim = 20;
 //    float springConstant = 60;
 //    float springDampingCoefficient = 0.5;
-//    float dragCoefficient = 0.01;
+//    float dragCoefficient = 0.001;
 //    glm::vec3 clothPosition(0, 1.5, 0);
 //    float sideLength = 4;
 //    bool vertical = false;
@@ -421,10 +530,37 @@ int main(int argc, char* argv[]) {
 //    glm::vec3 gravity(0, -0.4, 0);
 //    glm::vec3 airflow(1, 1, 2);
 //    vector<Collider*> colliders = {
-//            AddSphereCollider(glm::vec3(0, 0, 0), 1, 50, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
+//            AddSphereCollider(glm::vec3(0, 0, 0), 1, 1, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
 //    };
 //    light.SetPosition(glm::vec3(10, 10, 10));
 //    camera.SetPosition(glm::vec3(0, 3, 8));
+
+
+// FALLING ONTO SPHERE WITH FLOOR
+//    int dim = 20;
+//    float springConstant = 40;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 1.5, 0);
+//    float sideLength = 4;
+//    bool vertical = false;
+//    vector<glm::ivec2> fixed = { };
+//    glm::vec3 clothTexBackgroundColor(0.3, 0.3, 0.3);
+//    glm::vec3 clothTexCurveColor(1, 0.3, 0.3);
+//    float clothTexCurvature = 1;
+//    float clothTexCurveThickness = 1;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(0, 0, 0);
+//    vector<Collider*> colliders = {
+//            AddSphereCollider(glm::vec3(0, 0, 0), 1, 5, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3)),
+//            AddCubeCollider(glm::vec3(0, -5, 0), 10, 5, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
+//
+//    };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 2, 8));
 
 
 // FALLING ONTO SPHERE
@@ -446,13 +582,14 @@ int main(int argc, char* argv[]) {
 //    glm::vec3 gravity(0, -0.4, 0);
 //    glm::vec3 airflow(0, 0, 0);
 //    vector<Collider*> colliders = {
-//            AddSphereCollider(glm::vec3(0, 0, 0), 1, 50, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
+//            AddSphereCollider(glm::vec3(0, 0, 0), 1, 5, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
 //    };
 //    light.SetPosition(glm::vec3(10, 10, 10));
 //    camera.SetPosition(glm::vec3(0, 2, 8));
 
+// FALLING ONTO SPHERE SC 2
     int dim = 20;
-    float springConstant = 40;
+    float springConstant = 60;
     float springDampingCoefficient = 0.5;
     float dragCoefficient = 0.01;
     glm::vec3 clothPosition(0, 1.5, 0);
@@ -469,10 +606,38 @@ int main(int argc, char* argv[]) {
     glm::vec3 gravity(0, -0.4, 0);
     glm::vec3 airflow(0, 0, 0);
     vector<Collider*> colliders = {
-            AddSphereCollider(glm::vec3(0, 0, 0), 1, 50, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
+            AddSphereCollider(glm::vec3(0, 0, 0), 1, 5, glm::vec3(0.7, 0.5, 0.3), glm::vec3(0.7, 0.5, 0.3))
     };
     light.SetPosition(glm::vec3(10, 10, 10));
-    camera.SetPosition(glm::vec3(0, 2, 8));
+    camera.SetPosition(glm::vec3(0, 0, 8));
+
+
+
+
+//    int dim = 20;
+//    float springConstant = 40;
+//    float springDampingCoefficient = 0.5;
+//    float dragCoefficient = 0.01;
+//    glm::vec3 clothPosition(0, 1.5, 0);
+//    float sideLength = 4;
+//    bool vertical = false;
+//    vector<glm::ivec2> fixed = { };
+//    glm::vec3 clothTexBackgroundColor(0.3, 0.3, 0.3);
+//    glm::vec3 clothTexCurveColor(1, 0.3, 0.3);
+//    float clothTexCurvature = 1;
+//    float clothTexCurveThickness = 1;
+//    float clothTexCurveFrequency = 1;
+//
+//    float dt = 0.005f;
+//    glm::vec3 gravity(0, -0.4, 0);
+//    glm::vec3 airflow(0, 0, 0);
+//
+//    vector<Collider*> colliders = {
+//            AddSphereCollider(glm::vec3(-1.2, 0, 0), 1, 0),
+//            AddSphereCollider(glm::vec3(1.2, 0, 0), 1, 0)
+//    };
+//    light.SetPosition(glm::vec3(10, 10, 10));
+//    camera.SetPosition(glm::vec3(0, 2, 8));
 
 
     Cloth cloth(dim, springConstant, springDampingCoefficient, dragCoefficient, shader, clothPosition, sideLength, vertical, fixed);
